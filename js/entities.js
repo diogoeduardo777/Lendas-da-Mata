@@ -67,6 +67,7 @@ class Jogador {
     this.suspensoT = 0;         // preso no ar pelo redemoinho do Saci
     this.imuneRedemoinhoT = 0;  // graça após ser solto (evita prender sem parar)
     this.flutuarY = 0;          // deslocamento visual ao flutuar
+    this.lendarios = 0;         // upgrades lendários pegos (brilho dourado)
   }
 
   // Bônus de dano da passiva "fúria" do Berserker (mais dano com pouca vida)
@@ -174,6 +175,7 @@ class Jogador {
     this.invuln = 0.6;
     this.vx += empurraoX; this.vy = -4;
     this.jogo.adicionarTextoDano(this.centroX(), this.y, dano, false, '#ff6b6b');
+    this.jogo.tremer(6); // tremor ao levar dano
     if (this.vida <= 0) { this.vida = 0; this.jogo.gameOver(); }
   }
 
@@ -193,22 +195,47 @@ class Jogador {
   render(ctx) {
     const cx = this.centroX(), cy = this.centroY();
     const el = ELEMENTOS[this.elemento];
+    const raioAura = 26 + Math.min(22, (this.nivel - 1) * 1.0); // aura cresce com o nível
     ctx.save();
     if (this.invuln > 0 && Math.floor(this.invuln * 20) % 2 === 0) ctx.globalAlpha = 0.4;
     if (this.suspensoT > 0) ctx.translate(0, this.flutuarY); // flutua ao ser suspenso
 
     // Aura elemental
-    const grad = ctx.createRadialGradient(cx, cy, 4, cx, cy, 28);
+    const grad = ctx.createRadialGradient(cx, cy, 4, cx, cy, raioAura);
     grad.addColorStop(0, el.cor + '88');
     grad.addColorStop(1, el.cor + '00');
     ctx.fillStyle = grad;
-    ctx.beginPath(); ctx.arc(cx, cy, 28, 0, Math.PI * 2); ctx.fill();
+    ctx.beginPath(); ctx.arc(cx, cy, raioAura, 0, Math.PI * 2); ctx.fill();
+
+    // Chamas quando o combo está alto
+    const nc = this.jogo.nivelCombo ? this.jogo.nivelCombo() : 0;
+    if (nc >= 3) {
+      ctx.save(); ctx.globalCompositeOperation = 'lighter'; ctx.globalAlpha = 0.55;
+      for (let i = 0; i < 5; i++) {
+        const fx = cx + Math.cos(this.animT * 6 + i) * raioAura * 0.5;
+        const fy = cy - 6 + Math.sin(this.animT * 10 + i) * 5;
+        ctx.fillStyle = i % 2 ? '#ff6b3c' : '#ffd93c';
+        ctx.beginPath(); ctx.arc(fx, fy, nc >= 5 ? 4 : 3, 0, Math.PI * 2); ctx.fill();
+      }
+      ctx.restore();
+    }
 
     // Redemoinho segurando o jogador (estado suspenso)
     if (this.suspensoT > 0) Sprites.redemoinhoPreso(ctx, cx, cy, this.animT, this.h);
 
     // Personagem desenhado (estilo cartum do folclore)
     Sprites.heroi(ctx, this);
+
+    // Estrelinhas douradas por upgrade lendário
+    if (this.lendarios > 0) {
+      const n = Math.min(4, this.lendarios);
+      ctx.fillStyle = '#ffd93c'; ctx.font = '12px system-ui';
+      ctx.textAlign = 'center'; ctx.textBaseline = 'middle'; ctx.globalAlpha = 0.9;
+      for (let i = 0; i < n; i++) {
+        const a = this.animT * 2 + i * (Math.PI * 2 / n);
+        ctx.fillText('✦', cx + Math.cos(a) * (raioAura + 6), cy + Math.sin(a) * (raioAura + 6));
+      }
+    }
     ctx.restore();
   }
 }
@@ -329,8 +356,9 @@ class Inimigo {
     const dano = danoAposArmadura(res.dano, 0);
     this.vida -= dano;
     this.hitFlash = 0.08;
-    this.jogo.adicionarTextoDano(this.centroX(), this.y, dano, res.critico,
-      res.critico ? '#ffd93c' : '#ffffff');
+    const el = ELEMENTOS[elementoAtaque];
+    const cor = res.critico ? '#ffd93c' : (el ? (el.cor2 || el.cor) : '#ffffff');
+    this.jogo.adicionarTextoDano(this.centroX(), this.y, dano, res.critico, cor);
     if (this.vida <= 0) this.morrer();
     return dano;
   }
@@ -343,6 +371,7 @@ class Inimigo {
 
   finalizarMorte() {
     this.morto = true;
+    if (this.boss) { this.jogo.tremer(12); this.jogo.hitStop = 0.12; } // impacto na morte do chefe
     // Partículas de morte
     for (let i = 0; i < (this.boss ? 24 : 8); i++) {
       this.jogo.particulas.push(new Particula(
@@ -462,7 +491,7 @@ class XPOrb {
       const puxo = Utils.lerp(6, 2, d / jog.stats.magnetismo);
       this.x += (dx / dd) * puxo; this.y += (dy / dd) * puxo;
     }
-    if (d < 18) { jog.ganharXP(this.valor); this.morto = true; }
+    if (d < 18) { jog.ganharXP(Math.max(1, Math.round(this.valor * this.jogo.comboMultXP()))); this.morto = true; }
   }
 
   render(ctx) {
@@ -622,11 +651,16 @@ class TextoDano {
     if (this.vida <= 0) this.morto = true;
   }
   render(ctx) {
+    const prog = 1 - this.vida / this.vidaMax; // 0..1
+    const pop = prog < 0.25 ? Utils.lerp(this.critico ? 1.8 : 1.4, 1.0, prog / 0.25) : 1.0;
+    const tam = (this.critico ? 20 : 14) * pop;
     ctx.save();
-    ctx.globalAlpha = Utils.clamp(this.vida / this.vidaMax, 0, 1);
+    ctx.globalAlpha = Utils.clamp(this.vida / this.vidaMax * 1.4, 0, 1);
+    ctx.textAlign = 'center'; ctx.textBaseline = 'middle';
+    ctx.font = `bold ${tam.toFixed(1)}px system-ui`;
+    ctx.lineWidth = 3; ctx.strokeStyle = '#000000cc';
+    ctx.strokeText(Math.round(this.valor), this.x, this.y);
     ctx.fillStyle = this.cor;
-    ctx.font = this.critico ? 'bold 20px system-ui' : 'bold 14px system-ui';
-    ctx.textAlign = 'center';
     ctx.fillText(Math.round(this.valor), this.x, this.y);
     ctx.restore();
   }

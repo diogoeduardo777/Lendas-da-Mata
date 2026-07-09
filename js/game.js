@@ -59,6 +59,9 @@ class Game {
     this.diretor = null;
     this.abates = 0;
     this.camera = { x: 0, y: 0 };
+    this.combo = 0; this.comboTimer = 0; this.comboPulse = 0; // sequência de abates
+    this.shake = 0;                    // intensidade do tremor de tela
+    this.hitStop = 0; this.hitStopCd = 0; // micro-congelamento no impacto
     this.levelUpsPendentes = 0;
     this.tempoAnuncio = 0;
     this.textoAnuncio = '';
@@ -143,10 +146,14 @@ class Game {
     this.lastTime = t;
 
     if (this.estado === 'jogando') {
-      this.acumulador += dtReal;
-      while (this.acumulador >= this.PASSO) {
-        this.update(this.PASSO);
-        this.acumulador -= this.PASSO;
+      if (this.hitStop > 0) {
+        this.hitStop -= dtReal; // congela o mundo por um instante (hit-stop)
+      } else {
+        this.acumulador += dtReal;
+        while (this.acumulador >= this.PASSO) {
+          this.update(this.PASSO);
+          this.acumulador -= this.PASSO;
+        }
       }
     }
     this.render();
@@ -172,7 +179,7 @@ class Game {
     // Remove entidades mortas (e recolhe inimigos que ficaram longe demais)
     const jx = this.jogador.centroX(), jy = this.jogador.centroY();
     this.inimigos = this.inimigos.filter(e => {
-      if (e.morto) { this.abates++; return false; }
+      if (e.morto) { this.abates++; this.combo++; this.comboTimer = 3; this.comboPulse = 1; return false; }
       if (!e.boss && !e.morrendo && Utils.dist(e.centroX(), e.centroY(), jx, jy) > 1900) return false;
       return true;
     });
@@ -185,6 +192,12 @@ class Game {
     this.textosDano = this.textosDano.filter(t => !t.morto);
 
     if (this.tempoAnuncio > 0) this.tempoAnuncio -= dt;
+
+    // Juice / combo — decaimento dos temporizadores
+    if (this.shake > 0) { this.shake *= 0.85; if (this.shake < 0.2) this.shake = 0; }
+    if (this.hitStopCd > 0) this.hitStopCd -= dt;
+    if (this.comboPulse > 0) this.comboPulse = Math.max(0, this.comboPulse - dt * 3);
+    if (this.comboTimer > 0) { this.comboTimer -= dt; if (this.comboTimer <= 0) this.combo = 0; }
   }
 
   colisoes() {
@@ -226,9 +239,13 @@ class Game {
   // Aplica um acerto de ataque do jogador em um inimigo (com crítico, afinidade, roubo de vida)
   acertar(inimigo, elemento) {
     const jog = this.jogador;
-    const base = jog.stats.dano * jog.bonusFuria();
+    const base = jog.stats.dano * jog.bonusFuria() * (1 + this.comboBonusDano());
     const res = calcularDano(jog.stats, base, elemento, inimigo.elemento);
     const aplicado = inimigo.receberDano(res, elemento);
+    if (res.critico) {
+      this.tremer(3);
+      if (this.hitStopCd <= 0) { this.hitStop = 0.03; this.hitStopCd = 0.16; } // punch no crítico (com throttle)
+    }
     if (jog.stats.rouboVida > 0) {
       jog.vida = Math.min(jog.stats.vidaMax, jog.vida + aplicado * jog.stats.rouboVida);
     }
@@ -316,6 +333,7 @@ class Game {
 
   escolherUpgrade(u) {
     u.aplicar(this.jogador);
+    if (u.raridade === 'lendario') this.jogador.lendarios = (this.jogador.lendarios || 0) + 1;
     this.levelUpsPendentes--;
     if (this.levelUpsPendentes > 0) {
       this.mostrarLevelUp(); // ainda há níveis pendentes
@@ -400,6 +418,12 @@ class Game {
     this.camera.y = Utils.clamp(alvoY, 0, Math.max(0, this.mundoAltura - this.altura));
   }
 
+  // --- Juice / combo ---
+  tremer(i) { this.shake = Math.max(this.shake, i); }
+  nivelCombo() { return Math.min(5, Math.floor(this.combo / 10)); } // 0..5
+  comboMultXP() { return 1 + this.nivelCombo() * 0.4; }             // até x3
+  comboBonusDano() { return this.nivelCombo() * 0.05; }            // até +25%
+
   // ---------------- Render ----------------
   render() {
     const ctx = this.ctx;
@@ -432,9 +456,11 @@ class Game {
     ctx.beginPath(); ctx.arc(this.largura - 100, 74, 6, 0, Math.PI * 2); ctx.fill();
     ctx.beginPath(); ctx.arc(this.largura - 80, 90, 4, 0, Math.PI * 2); ctx.fill();
 
-    // --- Mundo (deslocado pela câmera) ---
+    // --- Mundo (deslocado pela câmera + tremor de tela) ---
+    const sx = this.shake ? (Math.random() * 2 - 1) * this.shake : 0;
+    const sy = this.shake ? (Math.random() * 2 - 1) * this.shake : 0;
     ctx.save();
-    ctx.translate(-Math.round(cam.x), -Math.round(cam.y));
+    ctx.translate(-Math.round(cam.x) + sx, -Math.round(cam.y) + sy);
 
     // Silhuetas da mata ao fundo
     const ch = this.mundoAltura - 40;
@@ -483,6 +509,25 @@ class Game {
       ctx.beginPath(); ctx.arc(fx, fy, 1.6, 0, Math.PI * 2); ctx.fill();
     }
     ctx.globalAlpha = 1;
+
+    // Combo de abates em destaque (killstreak)
+    if (this.jogador && this.combo >= 5) {
+      const nc = this.nivelCombo();
+      const cores = ['#ffffff', '#ffe08a', '#ffc14d', '#ff9a3c', '#ff6b3c', '#ff3c3c'];
+      const escala = 1 + this.comboPulse * 0.4 + nc * 0.05;
+      ctx.save();
+      ctx.translate(this.largura / 2, 56);
+      ctx.scale(escala, escala);
+      ctx.textAlign = 'center'; ctx.textBaseline = 'middle';
+      ctx.font = 'bold 26px system-ui';
+      ctx.lineWidth = 4; ctx.strokeStyle = '#000000aa';
+      ctx.strokeText('COMBO x' + this.combo, 0, 0);
+      ctx.fillStyle = cores[nc];
+      ctx.fillText('COMBO x' + this.combo, 0, 0);
+      ctx.font = 'bold 11px system-ui'; ctx.fillStyle = '#e6f2e6';
+      ctx.fillText(`+${Math.round(this.comboBonusDano() * 100)}% dano · x${this.comboMultXP().toFixed(1)} XP`, 0, 17);
+      ctx.restore();
+    }
 
     if (this.jogador) this.atualizarHUD();
   }
