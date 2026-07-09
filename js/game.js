@@ -51,6 +51,7 @@ class Game {
     this.inimigos = [];
     this.projeteis = [];
     this.sacos = [];      // sacolas de dinheiro largadas pelos urubus
+    this.projInimigos = []; // projéteis dos inimigos (redemoinho, bala)
     this.xpOrbes = [];
     this.particulas = [];
     this.aneis = [];
@@ -160,6 +161,7 @@ class Game {
     for (const e of this.inimigos) e.update(dt);
     for (const p of this.projeteis) p.update(dt);
     for (const s of this.sacos) s.update(dt);
+    for (const pi of this.projInimigos) pi.update(dt);
     for (const o of this.xpOrbes) o.update(dt);
     for (const pt of this.particulas) pt.update(dt);
     for (const a of this.aneis) a.update(dt);
@@ -176,6 +178,7 @@ class Game {
     });
     this.projeteis = this.projeteis.filter(p => !p.morto);
     this.sacos = this.sacos.filter(s => !s.morto);
+    this.projInimigos = this.projInimigos.filter(p => !p.morto);
     this.xpOrbes = this.xpOrbes.filter(o => !o.morto);
     this.particulas = this.particulas.filter(p => !p.morto);
     this.aneis = this.aneis.filter(a => !a.morto);
@@ -209,6 +212,15 @@ class Game {
         jog.receberDano(e.danoContato, dir * 3);
       }
     }
+
+    // Projéteis dos inimigos x jogador (redemoinho do Saci, bala do cangaceiro)
+    for (const pi of this.projInimigos) {
+      if (pi.morto) continue;
+      if (Utils.dist(pi.x, pi.y, jog.centroX(), jog.centroY()) < pi.raio + 14) {
+        pi.acertarJogador(jog);
+        pi.morto = true;
+      }
+    }
   }
 
   // Aplica um acerto de ataque do jogador em um inimigo (com crítico, afinidade, roubo de vida)
@@ -230,6 +242,24 @@ class Game {
       if (Utils.dist(x, y, e.centroX(), e.centroY()) < raio + e.w / 2) {
         this.acertar(e, dono.elemento);
       }
+    }
+  }
+
+  // Saci lança um redemoinho em direção ao jogador (suspende-o no ar)
+  lancarRedemoinho(inimigo) {
+    const jog = this.jogador;
+    const ang = Math.atan2(jog.centroY() - inimigo.centroY(), jog.centroX() - inimigo.centroX());
+    this.projInimigos.push(new Redemoinho(this, inimigo.centroX(), inimigo.centroY(), ang));
+  }
+
+  // Cangaceiro dispara a espingarda (leque de pelotas) na direção do jogador
+  lancarBala(inimigo) {
+    const jog = this.jogador;
+    const ang0 = Math.atan2(jog.centroY() - inimigo.centroY(), jog.centroX() - inimigo.centroX());
+    const n = inimigo.cfg.pelotas || 2;
+    for (let i = 0; i < n; i++) {
+      const ang = ang0 + (i - (n - 1) / 2) * 0.13;
+      this.projInimigos.push(new BalaCangaceiro(this, inimigo.centroX(), inimigo.centroY(), ang, inimigo.danoContato));
     }
   }
 
@@ -436,6 +466,7 @@ class Game {
       for (const a of this.aneis) a.render(ctx);
       for (const e of this.inimigos) e.render(ctx);
       for (const s of this.sacos) s.render(ctx);
+      for (const pi of this.projInimigos) pi.render(ctx);
       for (const p of this.projeteis) p.render(ctx);
       this.jogador.render(ctx);
       for (const pt of this.particulas) pt.render(ctx);

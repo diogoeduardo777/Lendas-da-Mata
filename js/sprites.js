@@ -299,5 +299,167 @@ const Sprites = {
     ctx.textAlign = 'center'; ctx.textBaseline = 'middle';
     ctx.fillText(e.icone, cx, cy + Math.sin(e.animT * 4) * 2);
     ctx.restore();
+  },
+
+  // ---------- SACI-PERERÊ COLORADO (camisa do Inter, lança redemoinho) ----------
+  saci(ctx, e) {
+    const s = e.w / 26;
+    const cx = e.centroX(), base = e.y + e.h;
+    const lancando = e.atacandoT > 0;
+    const hop = Math.abs(Math.sin(e.animT * 7)) * 3 * s; // pulinho numa perna só
+
+    ctx.save();
+    ctx.translate(cx, 0); ctx.scale(e.dir, 1); ctx.translate(-cx, 0);
+    ctx.translate(0, -hop);
+
+    // Rodamoinho de poeira no pé
+    ctx.strokeStyle = '#cfe8d0'; ctx.lineWidth = 2 * s; ctx.globalAlpha = 0.7;
+    ctx.beginPath();
+    ctx.arc(cx, base - 2 * s, 9 * s, 0.3 + e.animT * 6, Math.PI * 1.3 + e.animT * 6);
+    ctx.stroke();
+    ctx.globalAlpha = 1;
+
+    // Uma perna só
+    ctx.fillStyle = '#241c16';
+    ctx.fillRect(cx - 3 * s, base - 11 * s, 6 * s, 11 * s);
+
+    // Corpo — camisa do Internacional (vermelha com faixa branca)
+    ctx.fillStyle = '#e4002b';
+    ctx.strokeStyle = '#00000044'; ctx.lineWidth = 2;
+    ctx.beginPath();
+    ctx.ellipse(cx, e.y + e.h * 0.6, e.w * 0.36, e.h * 0.3, 0, 0, Math.PI * 2);
+    ctx.fill(); ctx.stroke();
+    ctx.fillStyle = '#ffffff';
+    ctx.fillRect(cx - e.w * 0.34, e.y + e.h * 0.5, e.w * 0.68, 2.5 * s);
+
+    // Braço (sobe ao lançar)
+    ctx.strokeStyle = '#2a2320'; ctx.lineWidth = 4 * s; ctx.lineCap = 'round';
+    const bx = cx + e.w * 0.28, by = e.y + e.h * 0.55;
+    ctx.beginPath(); ctx.moveTo(bx, by);
+    ctx.lineTo(bx + (lancando ? 8 * s : 6 * s), by + (lancando ? -12 * s : 6 * s));
+    ctx.stroke();
+
+    // Cabeça escura + olho + cachimbo
+    const hy = e.y + e.h * 0.3;
+    this.elipse(ctx, cx, hy, e.w * 0.26, e.w * 0.24, '#2a2320');
+    ctx.fillStyle = '#fff'; ctx.beginPath(); ctx.arc(cx + e.w * 0.1, hy, 2 * s, 0, Math.PI * 2); ctx.fill();
+    ctx.fillStyle = '#111'; ctx.beginPath(); ctx.arc(cx + e.w * 0.12, hy, 1 * s, 0, Math.PI * 2); ctx.fill();
+    ctx.strokeStyle = '#5d4037'; ctx.lineWidth = 2 * s;
+    ctx.beginPath(); ctx.moveTo(cx + e.w * 0.22, hy + 2 * s); ctx.lineTo(cx + e.w * 0.34, hy + 4 * s); ctx.stroke();
+
+    // Carapuça (gorro pontudo vermelho) + pompom
+    ctx.fillStyle = '#e4002b';
+    ctx.beginPath();
+    ctx.moveTo(cx - e.w * 0.28, hy - e.w * 0.14);
+    ctx.lineTo(cx + e.w * 0.28, hy - e.w * 0.14);
+    ctx.lineTo(cx + e.w * 0.02, hy - e.w * 0.62);
+    ctx.closePath(); ctx.fill();
+    this.elipse(ctx, cx + e.w * 0.02, hy - e.w * 0.62, 2.5 * s, 2.5 * s, '#ffffff');
+
+    this.flashDano(ctx, e);
+    ctx.restore();
+  },
+
+  // ---------- CANGACEIRO (Lampião: chapéu de couro, óculos, espingarda) ----------
+  cangaceiro(ctx, e) {
+    const s = e.w / 34;
+    const cx = e.centroX(), base = e.y + e.h;
+    const atirando = e.atacandoT > 0;
+    const passo = Math.sin(e.animT * 7);
+    const couro = '#b8925a', couroEsc = '#7a5a34';
+
+    ctx.save();
+    ctx.translate(cx, 0); ctx.scale(e.dir, 1); ctx.translate(-cx, 0);
+
+    // Pernas
+    ctx.fillStyle = couroEsc;
+    ctx.fillRect(cx - 8 * s + passo * 3 * s, base - 12 * s, 6 * s, 12 * s);
+    ctx.fillRect(cx + 2 * s - passo * 3 * s, base - 12 * s, 6 * s, 12 * s);
+
+    // Gibão de couro
+    ctx.fillStyle = couro;
+    ctx.strokeStyle = '#00000044'; ctx.lineWidth = 2;
+    ctx.beginPath();
+    ctx.roundRect(cx - e.w * 0.3, e.y + e.h * 0.38, e.w * 0.6, e.h * 0.42, 5);
+    ctx.fill(); ctx.stroke();
+
+    // Bandoleiras cruzadas + munição
+    ctx.strokeStyle = '#5d4028'; ctx.lineWidth = 4 * s;
+    ctx.beginPath();
+    ctx.moveTo(cx - e.w * 0.28, e.y + e.h * 0.4); ctx.lineTo(cx + e.w * 0.24, e.y + e.h * 0.76);
+    ctx.moveTo(cx + e.w * 0.28, e.y + e.h * 0.4); ctx.lineTo(cx - e.w * 0.24, e.y + e.h * 0.76);
+    ctx.stroke();
+    ctx.fillStyle = '#e0b84a';
+    for (let i = -2; i <= 2; i++) ctx.fillRect(cx + i * 5 * s - s, e.y + e.h * 0.54 + Math.abs(i) * 1.4 * s, 2.4 * s, 4 * s);
+
+    // Braço + espingarda apontada
+    const armY = e.y + e.h * 0.5;
+    const recuo = atirando ? -2 * s : 2 * s;
+    ctx.strokeStyle = '#3a2a1a'; ctx.lineWidth = 5 * s; ctx.lineCap = 'round';
+    ctx.beginPath(); ctx.moveTo(cx, armY); ctx.lineTo(cx + e.w * 0.3, armY + recuo); ctx.stroke();
+    ctx.strokeStyle = '#333'; ctx.lineWidth = 3.5 * s;
+    ctx.beginPath(); ctx.moveTo(cx + e.w * 0.12, armY); ctx.lineTo(cx + e.w * 0.62, armY + recuo); ctx.stroke();
+    ctx.strokeStyle = '#6d4c2f'; ctx.lineWidth = 5 * s;
+    ctx.beginPath(); ctx.moveTo(cx + e.w * 0.02, armY - s); ctx.lineTo(cx + e.w * 0.18, armY + 2 * s); ctx.stroke();
+    if (atirando) this.elipse(ctx, cx + e.w * 0.66, armY + recuo, 5 * s, 3.5 * s, '#ffb03c');
+
+    // Cabeça + óculos redondos
+    const hy = e.y + e.h * 0.3;
+    this.elipse(ctx, cx, hy, e.w * 0.22, e.w * 0.2, '#e6b98a');
+    ctx.strokeStyle = '#222'; ctx.lineWidth = 1.5 * s;
+    ctx.beginPath(); ctx.arc(cx + e.w * 0.02, hy, 3 * s, 0, Math.PI * 2); ctx.stroke();
+    ctx.beginPath(); ctx.arc(cx + e.w * 0.14, hy, 3 * s, 0, Math.PI * 2); ctx.stroke();
+    ctx.beginPath(); ctx.moveTo(cx + e.w * 0.05, hy); ctx.lineTo(cx + e.w * 0.11, hy); ctx.stroke();
+
+    // Chapéu de couro em meia-lua com pontas viradas + estrela
+    ctx.fillStyle = couroEsc;
+    ctx.beginPath();
+    ctx.moveTo(cx - e.w * 0.34, hy - e.w * 0.14);
+    ctx.quadraticCurveTo(cx, hy - e.w * 0.30, cx + e.w * 0.34, hy - e.w * 0.14);
+    ctx.lineTo(cx + e.w * 0.22, hy - e.w * 0.04);
+    ctx.lineTo(cx - e.w * 0.22, hy - e.w * 0.04);
+    ctx.closePath(); ctx.fill();
+    ctx.beginPath();
+    ctx.moveTo(cx - e.w * 0.34, hy - e.w * 0.14); ctx.lineTo(cx - e.w * 0.44, hy - e.w * 0.42); ctx.lineTo(cx - e.w * 0.16, hy - e.w * 0.2); ctx.closePath(); ctx.fill();
+    ctx.beginPath();
+    ctx.moveTo(cx + e.w * 0.34, hy - e.w * 0.14); ctx.lineTo(cx + e.w * 0.44, hy - e.w * 0.42); ctx.lineTo(cx + e.w * 0.16, hy - e.w * 0.2); ctx.closePath(); ctx.fill();
+    this.elipse(ctx, cx, hy - e.w * 0.15, 2.6 * s, 2.6 * s, '#e0b84a');
+
+    this.flashDano(ctx, e);
+    ctx.restore();
+  },
+
+  // ---------- REDEMOINHO (projétil do Saci) ----------
+  redemoinho(ctx, cx, cy, rot, raio) {
+    ctx.save();
+    ctx.translate(cx, cy); ctx.rotate(rot);
+    ctx.strokeStyle = '#bfe6c8'; ctx.lineWidth = 3; ctx.lineCap = 'round';
+    for (let i = 0; i < 3; i++) {
+      ctx.globalAlpha = 0.85 - i * 0.22;
+      ctx.beginPath(); ctx.arc(0, 0, raio * (1 - i * 0.25), i, i + Math.PI * 1.4); ctx.stroke();
+    }
+    ctx.globalAlpha = 0.95; ctx.fillStyle = '#e8fff0';
+    ctx.beginPath(); ctx.arc(0, 0, raio * 0.22, 0, Math.PI * 2); ctx.fill();
+    ctx.restore();
+  },
+
+  // ---------- Vento segurando o jogador suspenso + estrelinhas de tontura ----------
+  redemoinhoPreso(ctx, cx, cy, t, h) {
+    ctx.save();
+    ctx.strokeStyle = '#bfe6c8'; ctx.lineCap = 'round';
+    for (let i = 0; i < 4; i++) {
+      const yy = cy + h * 0.2 + i * 5;
+      const w = 20 - i * 3;
+      const off = Math.sin(t * 8 + i) * 4;
+      ctx.globalAlpha = 0.5 - i * 0.09; ctx.lineWidth = 3;
+      ctx.beginPath(); ctx.moveTo(cx - w + off, yy); ctx.lineTo(cx + w + off, yy); ctx.stroke();
+    }
+    ctx.globalAlpha = 1;
+    ctx.fillStyle = '#ffd93c'; ctx.font = '11px system-ui'; ctx.textAlign = 'center'; ctx.textBaseline = 'middle';
+    for (let i = 0; i < 3; i++) {
+      const a = t * 5 + i * (Math.PI * 2 / 3);
+      ctx.fillText('✦', cx + Math.cos(a) * 14, cy - h * 0.5 + Math.sin(a) * 5);
+    }
+    ctx.restore();
   }
 };

@@ -64,6 +64,9 @@ class Jogador {
     this.animPasso = 0;
     this.animT = 0;         // tempo total (animações ociosas)
     this.atacandoT = 0;     // duração da pose de ataque
+    this.suspensoT = 0;         // preso no ar pelo redemoinho do Saci
+    this.imuneRedemoinhoT = 0;  // graça após ser solto (evita prender sem parar)
+    this.flutuarY = 0;          // deslocamento visual ao flutuar
   }
 
   // Bônus de dano da passiva "fúria" do Berserker (mais dano com pouca vida)
@@ -74,36 +77,47 @@ class Jogador {
   }
 
   update(dt) {
-    // --- Entrada horizontal ---
-    const vel = VEL_BASE * this.stats.velMov;
-    if (Input.esquerda()) { this.vx = -vel; this.olharDir = -1; }
-    else if (Input.direita()) { this.vx = vel; this.olharDir = 1; }
-    else this.vx = 0;
-
-    // --- Pulo (com detecção de borda para não pular segurando a tecla) ---
-    if (Input.pular()) {
-      if (this.noChao && !this.jaPulou) { this.vy = FORCA_PULO; this.jaPulou = true; }
-    } else {
-      this.jaPulou = false;
-    }
-
-    // --- Gravidade ---
-    this.vy += GRAVIDADE;
-    if (this.vy > 18) this.vy = 18;
-
-    this.noChao = resolverColisao(this, this.jogo.plataformas);
-
-    // Limites do mundo
-    this.x = Utils.clamp(this.x, 0, this.jogo.mundoLargura - this.w);
-    if (this.y > this.jogo.mundoAltura + 200) { this.vida = 0; } // caiu no vazio
-
-    if (Math.abs(this.vx) > 0.1 && this.noChao) this.animPasso += dt * 12;
+    // --- Timers (valem nos dois estados) ---
     this.animT += dt;
     if (this.atacandoT > 0) this.atacandoT -= dt;
-
-    // --- Timers ---
     if (this.invuln > 0) this.invuln -= dt;
     if (this.cdAtaque > 0) this.cdAtaque -= dt;
+    if (this.imuneRedemoinhoT > 0) this.imuneRedemoinhoT -= dt;
+
+    if (this.suspensoT > 0) {
+      // Preso no redemoinho do Saci: flutua parado, sem andar nem cair
+      this.suspensoT -= dt;
+      this.vx = 0; this.vy = 0;
+      this.noChao = false;
+      this.flutuarY = Math.sin(this.animT * 6) * 3;
+      if (this.suspensoT <= 0) this.imuneRedemoinhoT = 1.6; // não gruda de novo na hora
+    } else {
+      this.flutuarY = 0;
+      // --- Entrada horizontal ---
+      const vel = VEL_BASE * this.stats.velMov;
+      if (Input.esquerda()) { this.vx = -vel; this.olharDir = -1; }
+      else if (Input.direita()) { this.vx = vel; this.olharDir = 1; }
+      else this.vx = 0;
+
+      // --- Pulo (com detecção de borda para não pular segurando a tecla) ---
+      if (Input.pular()) {
+        if (this.noChao && !this.jaPulou) { this.vy = FORCA_PULO; this.jaPulou = true; }
+      } else {
+        this.jaPulou = false;
+      }
+
+      // --- Gravidade ---
+      this.vy += GRAVIDADE;
+      if (this.vy > 18) this.vy = 18;
+
+      this.noChao = resolverColisao(this, this.jogo.plataformas);
+
+      // Limites do mundo
+      this.x = Utils.clamp(this.x, 0, this.jogo.mundoLargura - this.w);
+      if (this.y > this.jogo.mundoAltura + 200) { this.vida = 0; } // caiu no vazio
+
+      if (Math.abs(this.vx) > 0.1 && this.noChao) this.animPasso += dt * 12;
+    }
 
     // --- Regeneração ---
     if (this.stats.regen > 0 && this.vida > 0) {
@@ -114,11 +128,20 @@ class Jogador {
       }
     }
 
-    // --- Ataque automático ---
+    // --- Ataque automático (continua mesmo preso no ar) ---
     if (this.cdAtaque <= 0) {
       const atacou = this.atacar();
       if (atacou) this.cdAtaque = 1 / this.stats.velAtaque;
     }
+  }
+
+  // Chamado pelo redemoinho do Saci: levanta o jogador e o segura no ar
+  serSuspenso(dur) {
+    if (this.suspensoT > 0 || this.imuneRedemoinhoT > 0 || this.vida <= 0) return;
+    this.suspensoT = dur;
+    this.y -= 42;            // "levanta" o jogador
+    this.vx = 0; this.vy = 0;
+    this.noChao = false;
   }
 
   atacar() {
@@ -169,15 +192,20 @@ class Jogador {
 
   render(ctx) {
     const cx = this.centroX(), cy = this.centroY();
-    // Aura elemental
     const el = ELEMENTOS[this.elemento];
     ctx.save();
     if (this.invuln > 0 && Math.floor(this.invuln * 20) % 2 === 0) ctx.globalAlpha = 0.4;
+    if (this.suspensoT > 0) ctx.translate(0, this.flutuarY); // flutua ao ser suspenso
+
+    // Aura elemental
     const grad = ctx.createRadialGradient(cx, cy, 4, cx, cy, 28);
     grad.addColorStop(0, el.cor + '88');
     grad.addColorStop(1, el.cor + '00');
     ctx.fillStyle = grad;
     ctx.beginPath(); ctx.arc(cx, cy, 28, 0, Math.PI * 2); ctx.fill();
+
+    // Redemoinho segurando o jogador (estado suspenso)
+    if (this.suspensoT > 0) Sprites.redemoinhoPreso(ctx, cx, cy, this.animT, this.h);
 
     // Personagem desenhado (estilo cartum do folclore)
     Sprites.heroi(ctx, this);
@@ -219,6 +247,12 @@ class Inimigo {
     this.tMorte = 0;
     this.temBolsa = cfg.sprite === 'urubu'; // urubu carrega sacola de dinheiro
     this.cdBolsa = Utils.rand(3, 5);
+
+    // Comportamento (andarilho / voador / atirador / redemoinho)
+    this.comportamento = cfg.comportamento || (this.voa ? 'voador' : 'andarilho');
+    this.alcanceIdeal = cfg.alcanceIdeal || 240; // distância que o atirador tenta manter
+    this.intervaloTiro = cfg.intervaloTiro || 3;
+    this.cdTiro = Utils.rand(0.8, this.intervaloTiro);
   }
 
   update(dt) {
@@ -260,6 +294,22 @@ class Inimigo {
         const d = Math.hypot(dx, dy) || 1;
         this.x += (dx / d) * this.vel;
         this.y += (dy / d) * this.vel;
+      }
+    } else if (this.comportamento === 'atirador' || this.comportamento === 'redemoinho') {
+      // Atiradores/lançadores: mantêm distância e disparam de longe
+      const distX = Math.abs(dx);
+      if (distX > this.alcanceIdeal) this.vx = Math.sign(dx) * this.vel;         // aproxima
+      else if (distX < this.alcanceIdeal - 70) this.vx = -Math.sign(dx) * this.vel * 0.7; // recua
+      else this.vx = 0;                                                          // posição de tiro
+      this.vy += GRAVIDADE;
+      if (this.vy > 18) this.vy = 18;
+      this.noChao = resolverColisao(this, this.jogo.plataformas);
+      this.cdTiro -= dt;
+      if (this.cdTiro <= 0 && distX < this.alcanceIdeal + 160 && Math.abs(dy) < 260) {
+        this.cdTiro = this.intervaloTiro;
+        this.atacandoT = 0.45;
+        if (this.comportamento === 'redemoinho') this.jogo.lancarRedemoinho(this);
+        else this.jogo.lancarBala(this);
       }
     } else {
       // Andarilhos: perseguem no eixo X e sofrem gravidade
@@ -329,6 +379,8 @@ class Inimigo {
     // Sprite conforme o tipo
     if (this.boss) Sprites.boss(ctx, this);
     else if (this.cfg.sprite === 'urubu') Sprites.urubu(ctx, this);
+    else if (this.cfg.sprite === 'saci') Sprites.saci(ctx, this);
+    else if (this.cfg.sprite === 'cangaceiro') Sprites.cangaceiro(ctx, this);
     else Sprites.gnomo(ctx, this);
 
     // Barra de vida (bosses e feridos)
@@ -467,6 +519,52 @@ class SacoDinheiro {
   }
 
   render(ctx) { Sprites.sacoDinheiro(ctx, this); }
+}
+
+// ============================================================
+// PROJÉTEIS DOS INIMIGOS
+//  - Redemoinho: lançado pelo Saci; suspende o jogador no ar
+//  - BalaCangaceiro: tiro de espingarda dos cangaceiros (dano à distância)
+// ============================================================
+class Redemoinho {
+  constructor(jogo, x, y, ang) {
+    this.jogo = jogo; this.x = x; this.y = y;
+    const v = 3.6;
+    this.vx = Math.cos(ang) * v; this.vy = Math.sin(ang) * v;
+    this.raio = 15; this.vida = 3.2; this.rot = 0; this.dur = 1.8; this.morto = false;
+  }
+  update(dt) {
+    this.x += this.vx; this.y += this.vy; this.rot += dt * 9; this.vida -= dt;
+    if (this.vida <= 0 || this.x < -60 || this.x > this.jogo.mundoLargura + 60 ||
+        this.y < -60 || this.y > this.jogo.mundoAltura + 60) this.morto = true;
+  }
+  acertarJogador(j) { j.serSuspenso(this.dur); }
+  render(ctx) { Sprites.redemoinho(ctx, this.x, this.y, this.rot, this.raio); }
+}
+
+class BalaCangaceiro {
+  constructor(jogo, x, y, ang, dano) {
+    this.jogo = jogo; this.x = x; this.y = y;
+    const v = 7.5;
+    this.vx = Math.cos(ang) * v; this.vy = Math.sin(ang) * v;
+    this.raio = 5; this.vida = 2.5; this.dano = dano; this.morto = false;
+  }
+  update(dt) {
+    this.x += this.vx; this.y += this.vy; this.vida -= dt;
+    if (this.vida <= 0 || this.x < -60 || this.x > this.jogo.mundoLargura + 60 ||
+        this.y < -60 || this.y > this.jogo.mundoAltura + 60) this.morto = true;
+  }
+  acertarJogador(j) { j.receberDano(this.dano, Math.sign(this.vx) * 3); }
+  render(ctx) {
+    ctx.save();
+    ctx.strokeStyle = '#8a7a60'; ctx.lineWidth = 3; ctx.lineCap = 'round';
+    ctx.beginPath();
+    ctx.moveTo(this.x - this.vx * 1.6, this.y - this.vy * 1.6);
+    ctx.lineTo(this.x, this.y); ctx.stroke();
+    ctx.shadowColor = '#ff8a3c'; ctx.shadowBlur = 6; ctx.fillStyle = '#ffd36b';
+    ctx.beginPath(); ctx.arc(this.x, this.y, this.raio, 0, Math.PI * 2); ctx.fill();
+    ctx.restore();
+  }
 }
 
 // ============================================================

@@ -24,6 +24,18 @@ const INIMIGOS = {
     nome: 'Gnomo Gigante', sprite: 'gnomo', cor: '#2e7d32', corChapeu: '#37474f', barba: true, elemento: 'trovao',
     vidaBase: 60, danoContato: 18, vel: 1.5, tamanho: 44, xpValor: 4, voa: false
   },
+  // Saci-Colorado: raro, lança redemoinho que suspende o jogador no ar (não dá dano direto)
+  saci: {
+    nome: 'Saci-Colorado', sprite: 'saci', comportamento: 'redemoinho', cor: '#e4002b', elemento: 'vento',
+    vidaBase: 22, danoContato: 6, vel: 2.7, tamanho: 26, xpValor: 2, voa: false,
+    alcanceIdeal: 210, intervaloTiro: 4.5
+  },
+  // Cangaceiro (Lampião): atira de longe com espingarda (dano à distância)
+  cangaceiro: {
+    nome: 'Cangaceiro', sprite: 'cangaceiro', comportamento: 'atirador', cor: '#b8925a', elemento: 'terra',
+    vidaBase: 34, danoContato: 12, vel: 1.6, tamanho: 34, xpValor: 3, voa: false,
+    alcanceIdeal: 320, intervaloTiro: 2.6, pelotas: 2
+  },
   // --- Chefes ---
   boitata: {
     nome: 'Boitatá', icone: '🐍', cor: '#ff5a3c', elemento: 'fogo',
@@ -55,12 +67,22 @@ const CHEFES_AGENDA = [
   { tempo: 360, tipo: 'mapinguari' }
 ];
 
+// Mobs especiais que entram "de vez em quando", por cima da horda comum.
+// Cada um tem ritmo próprio (intervalo), momento de estreia (desde), tamanho
+// do grupo (lote) e um LIMITE de quantos podem estar vivos ao mesmo tempo (cap).
+const ESPECIAIS = [
+  { tipo: 'saci',       desde: 40, intervalo: 13, cap: 4, lote: [1, 2], anuncio: '👣 Sacis colorados apareceram!' },
+  { tipo: 'cangaceiro', desde: 75, intervalo: 20, cap: 6, lote: [2, 3], anuncio: '🔫 Bando de cangaceiros no pedaço!' }
+];
+
 class DiretorDeOndas {
   constructor(jogo) {
     this.jogo = jogo;
     this.tempo = 0;
     this.cdSpawn = 0;
     this.chefesUsados = new Set();
+    this.cdEspeciais = ESPECIAIS.map(esp => Utils.rand(3, esp.intervalo));
+    this.especiaisVistos = new Set();
   }
 
   // Escala de dificuldade cresce com o tempo (vida/dano dos inimigos)
@@ -92,6 +114,29 @@ class DiretorDeOndas {
         this.spawnInimigo(Utils.choice(fase.tipos));
       }
     }
+
+    // Mobs especiais (Saci, Cangaceiro): ritmo próprio + limite na tela,
+    // podendo surgir junto com a horda comum, mas sem exagerar na quantidade.
+    ESPECIAIS.forEach((esp, i) => {
+      if (this.tempo < esp.desde) return;
+      this.cdEspeciais[i] -= dt;
+      if (this.cdEspeciais[i] > 0) return;
+      this.cdEspeciais[i] = esp.intervalo;
+      const vivos = this.contarVivos(esp.tipo);
+      if (vivos >= esp.cap) return;
+      const qtd = Math.min(Utils.randInt(esp.lote[0], esp.lote[1]), esp.cap - vivos);
+      for (let k = 0; k < qtd; k++) this.spawnInimigo(esp.tipo);
+      if (!this.especiaisVistos.has(esp.tipo)) {
+        this.especiaisVistos.add(esp.tipo);
+        this.jogo.anunciar(esp.anuncio);
+      }
+    });
+  }
+
+  // Quantos inimigos de um tipo estão vivos (usado para respeitar o limite)
+  contarVivos(tipo) {
+    const cfg = INIMIGOS[tipo];
+    return this.jogo.inimigos.filter(e => e.cfg === cfg && !e.morrendo).length;
   }
 
   spawnInimigo(tipoId) {
