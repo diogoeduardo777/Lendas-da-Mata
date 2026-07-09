@@ -1,0 +1,247 @@
+/* ============================================================
+   style.css - Interface do jogo (menus, HUD, cartas)
+   ============================================================ */
+:root {
+  --verde: #7CFC7C;
+  --fundo: #0a1710;
+  --painel: #12251b;
+  --borda: #2e4a34;
+  --texto: #e6f2e6;
+  --sub: #9db3a3;
+}
+
+* { box-sizing: border-box; margin: 0; padding: 0; }
+
+body {
+  background: #05100a;
+  color: var(--texto);
+  font-family: system-ui, "Segoe UI", sans-serif;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  min-height: 100vh;
+  overflow: hidden;
+  overscroll-behavior: none;
+  touch-action: manipulation;
+}
+
+#palco {
+  position: relative;
+  /* Cabe na largura E na altura da tela, preservando a proporção 16:9 */
+  width: min(960px, 100vw, 177.78vh);
+  aspect-ratio: 960 / 540;
+  border-radius: 14px;
+  overflow: hidden;
+  box-shadow: 0 20px 60px #000a, 0 0 0 2px var(--borda);
+  touch-action: none;
+}
+
+#jogo {
+  display: block;
+  width: 100%;
+  height: 100%;
+  background: var(--fundo);
+}
+
+.escondido { display: none !important; }
+
+/* ---------------- Telas / Overlays ---------------- */
+.tela {
+  position: absolute;
+  inset: 0;
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  justify-content: center;
+  gap: 18px;
+  padding: 24px;
+  text-align: center;
+  background: radial-gradient(circle at 50% 40%, #0c2015ee, #04100aee);
+  backdrop-filter: blur(3px);
+  z-index: 10;
+}
+
+.titulo {
+  font-size: clamp(28px, 5vw, 52px);
+  font-weight: 800;
+  letter-spacing: 1px;
+  background: linear-gradient(90deg, #ffd93c, #7CFC7C, #3ca7ff);
+  -webkit-background-clip: text;
+  background-clip: text;
+  color: transparent;
+  text-shadow: 0 2px 20px #0006;
+}
+
+.subtitulo { color: var(--sub); font-size: 15px; max-width: 560px; line-height: 1.5; }
+
+.btn {
+  background: linear-gradient(180deg, #2e6b3f, #1c4a2a);
+  color: #fff;
+  border: 2px solid #4f9a5f;
+  padding: 12px 30px;
+  font-size: 18px;
+  font-weight: 700;
+  border-radius: 10px;
+  cursor: pointer;
+  transition: transform .08s, box-shadow .15s;
+}
+.btn:hover { transform: translateY(-2px); box-shadow: 0 8px 20px #0007; }
+
+/* ---------------- Cartas (classe e upgrade) ---------------- */
+.grid-cartas {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 14px;
+  justify-content: center;
+  max-width: 900px;
+}
+
+.carta {
+  background: var(--painel);
+  border: 2px solid var(--borda);
+  border-radius: 12px;
+  padding: 16px;
+  width: 165px;
+  cursor: pointer;
+  color: var(--texto);
+  text-align: center;
+  transition: transform .1s, box-shadow .15s;
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  gap: 6px;
+  position: relative;
+}
+.carta:hover { transform: translateY(-4px) scale(1.03); box-shadow: 0 10px 26px #000a; }
+
+.carta-icone {
+  font-size: 30px;
+  width: 56px; height: 56px;
+  border-radius: 50%;
+  display: flex; align-items: center; justify-content: center;
+  margin-bottom: 4px;
+}
+.carta-nome { font-weight: 700; font-size: 15px; }
+.alcunha { color: var(--sub); font-weight: 400; font-size: 12px; }
+.carta-elemento { font-size: 13px; font-weight: 600; }
+.carta-desc { color: var(--sub); font-size: 12px; line-height: 1.35; }
+.carta-raridade { font-size: 11px; font-weight: 700; text-transform: uppercase; letter-spacing: 1px; }
+.carta-tecla {
+  position: absolute; top: 8px; right: 10px;
+  color: var(--sub); font-size: 12px; border: 1px solid var(--borda);
+  border-radius: 5px; padding: 1px 6px;
+}
+
+/* ---------------- HUD ---------------- */
+#hud {
+  position: absolute;
+  inset: 0;
+  pointer-events: none;
+  z-index: 5;
+  font-size: 13px;
+}
+
+.hud-topo {
+  position: absolute;
+  top: 10px; left: 12px; right: 12px;
+  display: flex; align-items: center; gap: 12px;
+}
+
+.barra {
+  height: 16px;
+  background: #00000066;
+  border: 1px solid #ffffff22;
+  border-radius: 8px;
+  overflow: hidden;
+  position: relative;
+}
+.barra-fill { height: 100%; transition: width .12s linear; }
+#barra-vida { background: linear-gradient(90deg, #ff6b6b, #ff3c3c); }
+#barra-xp { background: linear-gradient(90deg, #7CFC7C, #3ca7ff); }
+
+.bloco-vida { flex: 1; max-width: 320px; }
+.bloco-vida .rot { display: flex; justify-content: space-between; font-size: 11px; color: var(--sub); margin-bottom: 2px; }
+.bloco-xp { flex: 2; }
+.bloco-xp .barra { height: 8px; }
+
+.hud-info { display: flex; gap: 14px; font-weight: 700; font-size: 15px; }
+.hud-info span { text-shadow: 0 1px 3px #000; }
+
+#hud-stats {
+  position: absolute;
+  top: 54px; left: 12px;
+  list-style: none;
+  background: #0a1710bb;
+  border: 1px solid var(--borda);
+  border-radius: 10px;
+  padding: 10px 12px;
+  min-width: 190px;
+}
+#hud-stats li { padding: 2px 0; color: var(--texto); }
+#hud-stats b { color: var(--verde); }
+#hud-stats .sub { color: var(--sub); font-size: 11px; }
+
+#anuncio {
+  position: absolute;
+  top: 42%; left: 50%; transform: translateX(-50%);
+  background: #ff3c3ccc;
+  color: #fff; font-weight: 800; font-size: 22px;
+  padding: 10px 26px; border-radius: 10px;
+  box-shadow: 0 8px 30px #000a;
+  z-index: 6;
+  animation: pulse 1s ease-in-out infinite alternate;
+}
+@keyframes pulse { from { transform: translateX(-50%) scale(1); } to { transform: translateX(-50%) scale(1.06); } }
+
+.dica { color: var(--sub); font-size: 13px; }
+.dica b { color: var(--texto); }
+.dica-toque { display: none; }
+body.toque .dica-toque { display: block; }
+
+/* ---------------- Botão secundário ---------------- */
+.btn-secundario {
+  background: linear-gradient(180deg, #26424f, #1a2f38);
+  border-color: #3f6f80;
+  font-size: 15px; padding: 9px 24px;
+}
+
+/* ---------------- Formulário + Ranking ---------------- */
+.go-form { display: flex; gap: 8px; flex-wrap: wrap; justify-content: center; }
+#go-nome {
+  background: #0a1710; border: 2px solid var(--borda); color: var(--texto);
+  border-radius: 10px; padding: 10px 14px; font-size: 16px; width: 190px;
+}
+#go-nome:focus { outline: none; border-color: var(--verde); }
+
+.ranking {
+  list-style: none; width: min(460px, 92%); margin: 2px 0;
+  display: flex; flex-direction: column; gap: 4px;
+  max-height: 38vh; overflow-y: auto;
+}
+.ranking li {
+  display: flex; align-items: center; gap: 10px;
+  background: var(--painel); border: 1px solid var(--borda);
+  border-radius: 8px; padding: 7px 12px; font-size: 14px;
+}
+.rk-pos { width: 30px; text-align: center; font-weight: 700; }
+.rk-nome { flex: 1; text-align: left; font-weight: 600; overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
+.rk-classe { color: var(--sub); font-size: 12px; }
+.rk-abates { color: var(--verde); font-weight: 700; min-width: 58px; text-align: right; }
+.rk-destaque { border-color: var(--verde); box-shadow: 0 0 0 1px var(--verde); }
+.ranking-vazio { justify-content: center; color: var(--sub); }
+
+/* ---------------- Controles de toque (mobile) ---------------- */
+#controles-toque { position: absolute; inset: 0; pointer-events: none; z-index: 7; }
+.btn-toque {
+  pointer-events: auto; position: absolute; bottom: 18px;
+  width: 66px; height: 66px; border-radius: 50%;
+  background: #0e2016aa; border: 2px solid #ffffff33; color: #eafff0;
+  font-size: 26px; display: flex; align-items: center; justify-content: center;
+  touch-action: none; user-select: none; -webkit-user-select: none;
+  -webkit-tap-highlight-color: transparent; backdrop-filter: blur(2px);
+  transition: transform .06s, background .06s;
+}
+.btn-toque.ativo { background: #2e6b3fcc; border-color: var(--verde); transform: scale(0.92); }
+.toque-dpad { position: absolute; bottom: 18px; left: 18px; display: flex; gap: 14px; }
+.toque-dpad .btn-toque { position: static; }
+.btn-toque-pular { right: 22px; width: 82px; height: 82px; font-size: 30px; }

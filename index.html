@@ -1,0 +1,108 @@
+<!DOCTYPE html>
+<html lang="pt-BR">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no, viewport-fit=cover">
+  <meta name="theme-color" content="#05100a">
+  <meta name="mobile-web-app-capable" content="yes">
+  <title>Lendas da Mata — Survivor do Folclore</title>
+  <link rel="stylesheet" href="css/style.css">
+</head>
+<body>
+  <div id="palco">
+    <canvas id="jogo" width="960" height="540"></canvas>
+
+    <!-- HUD -->
+    <div id="hud" class="escondido">
+      <div class="hud-topo">
+        <div class="bloco-vida">
+          <div class="rot"><span>Vida</span><span id="texto-vida">100/100</span></div>
+          <div class="barra"><div id="barra-vida" class="barra-fill" style="width:100%"></div></div>
+        </div>
+        <div class="bloco-xp">
+          <div class="barra"><div id="barra-xp" class="barra-fill" style="width:0%"></div></div>
+        </div>
+        <div class="hud-info">
+          <span id="hud-nivel">Nv 1</span>
+          <span id="hud-tempo">00:00</span>
+          <span id="hud-abates">☠ 0</span>
+        </div>
+      </div>
+      <ul id="hud-stats"></ul>
+      <div id="anuncio" class="escondido"></div>
+    </div>
+
+    <!-- Menu inicial -->
+    <div id="tela-menu" class="tela">
+      <div class="titulo">LENDAS DA MATA</div>
+      <div class="subtitulo">
+        Um survivor arena 2D no coração do folclore brasileiro. Sobreviva às hordas de
+        criaturas encantadas, suba de nível e forje seu poder elemental.
+      </div>
+      <button id="btn-jogar" class="btn">▶ Jogar</button>
+      <button id="btn-ranking" class="btn btn-secundario">🏆 Ranking</button>
+      <div class="dica">Mover: <b>← →</b> ou <b>A D</b> · Pular: <b>↑ / W / Espaço</b> · Ataque é automático</div>
+      <div class="dica dica-toque">📱 No celular use os botões na tela · vire o aparelho na horizontal</div>
+    </div>
+
+    <!-- Seleção de classe -->
+    <div id="tela-selecao" class="tela escondido">
+      <div class="titulo" style="font-size:32px">Escolha seu herói</div>
+      <div id="cartas-classe" class="grid-cartas"></div>
+    </div>
+
+    <!-- Level up -->
+    <div id="tela-levelup" class="tela escondido">
+      <div class="titulo" style="font-size:32px">✨ Subiu de nível!</div>
+      <div class="subtitulo">Escolha uma bênção (clique ou tecle 1, 2, 3)</div>
+      <div id="cartas-upgrade" class="grid-cartas"></div>
+    </div>
+
+    <!-- Game over -->
+    <div id="tela-gameover" class="tela escondido">
+      <div class="titulo" style="background:linear-gradient(90deg,#ff6b6b,#ffd93c);-webkit-background-clip:text;background-clip:text;">
+        Você tombou
+      </div>
+      <div id="go-resumo" class="subtitulo"></div>
+      <div class="go-form">
+        <input id="go-nome" type="text" maxlength="16" placeholder="Seu nome" autocomplete="off">
+        <button id="btn-salvar-score" class="btn">💾 Salvar no ranking</button>
+      </div>
+      <ol id="ranking-lista" class="ranking"></ol>
+      <button id="btn-reiniciar" class="btn">↻ Jogar de novo</button>
+    </div>
+
+    <!-- Ranking (a partir do menu) -->
+    <div id="tela-ranking" class="tela escondido">
+      <div class="titulo" style="font-size:32px">🏆 Ranking</div>
+      <div id="ranking-fonte" class="dica"></div>
+      <ol id="ranking-lista-menu" class="ranking"></ol>
+      <button id="btn-voltar-menu" class="btn">← Voltar</button>
+    </div>
+
+    <!-- Controles de toque (mobile) -->
+    <div id="controles-toque" class="escondido">
+      <div class="toque-dpad">
+        <button class="btn-toque" data-key="ArrowLeft" aria-label="Esquerda">◀</button>
+        <button class="btn-toque" data-key="ArrowRight" aria-label="Direita">▶</button>
+      </div>
+      <button class="btn-toque btn-toque-pular" data-key="Space" aria-label="Pular">⤒</button>
+    </div>
+  </div>
+
+  <!-- Scripts em ordem de dependência (script clássico: roda direto do arquivo, sem servidor) -->
+  <script src="js/utils.js"></script>
+  <script src="js/input.js"></script>
+  <script src="js/elements.js"></script>
+  <script src="js/stats.js"></script>
+  <script src="js/classes.js"></script>
+  <script src="js/upgrades.js"></script>
+  <script src="js/config.js"></script>
+  <script src="js/ranking.js"></script>
+  <script src="js/sprites.js"></script>
+  <script src="js/entities.js"></script>
+  <script src="js/waves.js"></script>
+  <script src="js/game.js"></script>
+  <script src="js/main.js"></script>
+</body>
+</html>
