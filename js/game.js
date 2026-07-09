@@ -475,7 +475,9 @@ class Game {
       <li>🩸 Roubo de vida <b>${Math.round(s.rouboVida * 100)}%</b></li>
       <li>⚡ Vel. ataque <b>${s.velAtaque.toFixed(2)}/s</b></li>
       <li>👟 Vel. mov. <b>${Math.round(s.velMov * 100)}%</b></li>
-      <li>➕ Projéteis <b>${s.projeteis}</b></li>
+      ${j.arma.tipo === 'golpe'
+        ? `<li>🥋 Golpes <b>${s.golpes}</b></li>`
+        : `<li>➕ Projéteis <b>${s.projeteis}</b></li>`}
       ${af ? `<li>✨ Afinidade ${af}</li>` : ''}`;
   }
 }

@@ -14,7 +14,8 @@ class Stats {
     this.velAtaque   = base.velAtaque   ?? 1.0;   // ataques por segundo (multiplicador)
     this.area        = base.area        ?? 1.0;   // multiplicador de área/tamanho dos ataques
     this.alcance     = base.alcance     ?? 1.0;   // multiplicador de alcance
-    this.projeteis   = base.projeteis   ?? 1;     // nº de projéteis/golpes por ataque
+    this.projeteis   = base.projeteis   ?? 1;     // nº de projéteis por ataque (armas à distância)
+    this.golpes      = base.golpes      ?? 1;     // nº de golpes por ataque (armas corpo a corpo)
     this.regen       = base.regen       ?? 0;     // vida regenerada por segundo
     this.sorte       = base.sorte       ?? 0;     // afeta raridade de upgrades e drops
     this.magnetismo  = base.magnetismo  ?? 90;    // raio (px) de atração de XP

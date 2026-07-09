@@ -133,9 +133,12 @@ class Jogador {
         const ang = ang0 + (i - (n - 1) / 2) * spread;
         this.jogo.projeteis.push(new Projetil(this.jogo, this, this.centroX(), this.centroY(), ang));
       }
-    } else { // golpe em área ao redor do jogador
-      const raio = this.arma.alcanceBase * this.stats.alcance * this.stats.area;
-      this.jogo.golpeArea(this, this.centroX(), this.centroY(), raio);
+    } else { // golpe(s) em área ao redor do jogador
+      const raioBase = this.arma.alcanceBase * this.stats.alcance * this.stats.area;
+      for (let i = 0; i < this.stats.golpes; i++) {
+        // golpes extras batem num raio um pouco maior (mais alcance e mais dano)
+        this.jogo.golpeArea(this, this.centroX(), this.centroY(), raioBase * (1 + i * 0.14));
+      }
     }
     this.atacandoT = 0.18; // pose de ataque (braço estendido)
     return true;
