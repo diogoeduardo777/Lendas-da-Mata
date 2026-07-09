@@ -10,6 +10,15 @@ const Ranking = {
   cfg() { return window.RANKING_CONFIG || {}; },
   online() { const c = this.cfg(); return !!(c.SUPABASE_URL && c.SUPABASE_ANON_KEY); },
 
+  // Cabeçalhos de autenticação (aceita chave anon "eyJ..." ou publishable "sb_...")
+  _auth(c) {
+    const h = { apikey: c.SUPABASE_ANON_KEY };
+    if (String(c.SUPABASE_ANON_KEY).startsWith('eyJ')) {
+      h.Authorization = `Bearer ${c.SUPABASE_ANON_KEY}`;
+    }
+    return h;
+  },
+
   // ---- Nome do jogador (lembrado entre partidas) ----
   lerNome() { try { return localStorage.getItem(this.chaveNome) || ''; } catch (e) { return ''; } },
   salvarNome(n) { try { localStorage.setItem(this.chaveNome, n); } catch (e) {} },
@@ -44,12 +53,7 @@ const Ranking = {
       try {
         const r = await fetch(`${c.SUPABASE_URL}/rest/v1/${c.TABELA}`, {
           method: 'POST',
-          headers: {
-            'Content-Type': 'application/json',
-            apikey: c.SUPABASE_ANON_KEY,
-            Authorization: `Bearer ${c.SUPABASE_ANON_KEY}`,
-            Prefer: 'return=minimal'
-          },
+          headers: { 'Content-Type': 'application/json', ...this._auth(c), Prefer: 'return=minimal' },
           body: JSON.stringify(reg)
         });
         if (!r.ok) throw new Error('HTTP ' + r.status);
@@ -69,9 +73,7 @@ const Ranking = {
       try {
         const url = `${c.SUPABASE_URL}/rest/v1/${c.TABELA}` +
           `?select=nome,classe,abates,tempo,nivel&order=abates.desc&limit=${limite}`;
-        const r = await fetch(url, {
-          headers: { apikey: c.SUPABASE_ANON_KEY, Authorization: `Bearer ${c.SUPABASE_ANON_KEY}` }
-        });
+        const r = await fetch(url, { headers: this._auth(c) });
         if (r.ok) return { fonte: 'online', lista: await r.json() };
       } catch (e) {
         console.warn('Ranking online indisponível — mostrando o local.', e);

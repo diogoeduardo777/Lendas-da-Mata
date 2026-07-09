@@ -10,7 +10,7 @@
 // políticas RLS), então pode ficar aqui no repositório sem problema.
 // ============================================================
 window.RANKING_CONFIG = {
-  SUPABASE_URL: '',        // ex.: https://abcdefgh.supabase.co
-  SUPABASE_ANON_KEY: '',   // chave pública "anon public"
+  SUPABASE_URL: 'https://mngddrjccnwaxzdomalj.supabase.co',
+  SUPABASE_ANON_KEY: 'sb_publishable_Hw5_0zWYEKrBvRKxpbLapw_diHRJKu9',
   TABELA: 'ranking'
 };
