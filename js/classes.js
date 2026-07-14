@@ -16,7 +16,8 @@ const CLASSES = {
       vidaMax: 160, dano: 14, armadura: 40, critChance: 0.08, critMult: 1.6,
       rouboVida: 0.05, velMov: 0.95, velAtaque: 0.9, area: 1.2, alcance: 1.0
     },
-    arma: { tipo: 'golpe', alcanceBase: 78, cor: '#e0b070' } // golpe circular ao redor
+    arma: { tipo: 'golpe', alcanceBase: 78, cor: '#e0b070', efeito: 'empurrao' }, // golpe empurra os inimigos
+    habilidade: { nome: 'Tremor', icone: '🌋', cd: 8, tipo: 'tremor' }
   },
 
   mago: {
@@ -32,7 +33,8 @@ const CLASSES = {
       rouboVida: 0, velMov: 1.0, velAtaque: 1.0, area: 1.1, alcance: 1.3,
       afinidade: { fogo: 1.25 }
     },
-    arma: { tipo: 'projetil', velProj: 6.5, pierce: 0, cor: '#ffb03c' }
+    arma: { tipo: 'projetil', velProj: 6.5, pierce: 0, cor: '#ffb03c', efeito: 'splash' }, // explode em área
+    habilidade: { nome: 'Bola de Fogo', icone: '☄️', cd: 7, tipo: 'bola' }
   },
 
   ninja: {
@@ -47,7 +49,8 @@ const CLASSES = {
       vidaMax: 100, dano: 9, armadura: 12, critChance: 0.22, critMult: 2.0,
       rouboVida: 0.03, velMov: 1.25, velAtaque: 1.5, area: 0.9, alcance: 1.1
     },
-    arma: { tipo: 'projetil', velProj: 10, pierce: 1, cor: '#d6ffe0' } // shuriken perfurante
+    arma: { tipo: 'projetil', velProj: 10, pierce: 1, cor: '#d6ffe0', efeito: 'ricochete' }, // quica p/ outro inimigo
+    habilidade: { nome: 'Piscar', icone: '💨', cd: 5, tipo: 'piscar' }
   },
 
   encantadeira: {
@@ -63,7 +66,8 @@ const CLASSES = {
       rouboVida: 0.2, velMov: 1.05, velAtaque: 1.05, area: 1.15, alcance: 1.15, regen: 1,
       afinidade: { agua: 1.2 }
     },
-    arma: { tipo: 'projetil', velProj: 7, pierce: 0, cor: '#9be0ff' }
+    arma: { tipo: 'projetil', velProj: 7, pierce: 0, cor: '#9be0ff', efeito: 'lentidao' }, // molha e lentifica
+    habilidade: { nome: 'Maré', icone: '🌊', cd: 9, tipo: 'mare' }
   },
 
   berserker: {
@@ -78,7 +82,8 @@ const CLASSES = {
       vidaMax: 130, dano: 16, armadura: 20, critChance: 0.12, critMult: 1.9,
       rouboVida: 0.08, velMov: 1.1, velAtaque: 1.1, area: 1.0, alcance: 1.0
     },
-    arma: { tipo: 'golpe', alcanceBase: 70, cor: '#c9b6ff' },
+    arma: { tipo: 'golpe', alcanceBase: 70, cor: '#c9b6ff', efeito: 'corrente' }, // trovão salta entre inimigos
+    habilidade: { nome: 'Uivo', icone: '🌕', cd: 10, tipo: 'uivo' },
     // Passiva: bônus de dano conforme vida cai (aplicada no cálculo do ataque)
     passiva: 'furia'
   }

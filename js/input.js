@@ -43,7 +43,8 @@ const Input = {
     return codes.some(c => this.keys[c]);
   },
 
-  esquerda() { return this.isDown('ArrowLeft', 'KeyA'); },
-  direita()  { return this.isDown('ArrowRight', 'KeyD'); },
-  pular()    { return this.isDown('ArrowUp', 'KeyW', 'Space'); }
+  esquerda()   { return this.isDown('ArrowLeft', 'KeyA'); },
+  direita()    { return this.isDown('ArrowRight', 'KeyD'); },
+  pular()      { return this.isDown('ArrowUp', 'KeyW', 'Space'); },
+  habilidade() { return this.isDown('KeyK', 'KeyJ'); }
 };

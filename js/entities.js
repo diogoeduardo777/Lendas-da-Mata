@@ -68,6 +68,17 @@ class Jogador {
     this.imuneRedemoinhoT = 0;  // graça após ser solto (evita prender sem parar)
     this.flutuarY = 0;          // deslocamento visual ao flutuar
     this.lendarios = 0;         // upgrades lendários pegos (brilho dourado)
+
+    // Poderes ativos (Fase 2)
+    this.cdHabilidade = 0;      // recarga da habilidade de classe
+    this.jaUsouHab = false;     // detecção de borda do botão de habilidade
+    this.buffDano = 1; this.buffVel = 1; this.buffT = 0; // buffs temporários (Uivo)
+    this.axe = 0;               // 0..1 carga da ultimate (Axé)
+    this.axeAtivo = 0;          // segundos restantes da invocação
+    this.axeTickCd = 0;         // ritmo do dano em área da ultimate
+    this.invencivelT = 0;       // invencibilidade (durante a ultimate)
+    this.curaRouboAcum = 0;     // cura por roubo de vida no segundo atual (teto)
+    this.curaRouboTempo = 0;    // relógio do teto de roubo de vida
   }
 
   // Bônus de dano da passiva "fúria" do Berserker (mais dano com pouca vida)
@@ -95,7 +106,7 @@ class Jogador {
     } else {
       this.flutuarY = 0;
       // --- Entrada horizontal ---
-      const vel = VEL_BASE * this.stats.velMov;
+      const vel = VEL_BASE * this.stats.velMov * this.buffVel;
       if (Input.esquerda()) { this.vx = -vel; this.olharDir = -1; }
       else if (Input.direita()) { this.vx = vel; this.olharDir = 1; }
       else this.vx = 0;
@@ -106,6 +117,11 @@ class Jogador {
       } else {
         this.jaPulou = false;
       }
+
+      // --- Habilidade de classe (aperta para usar) ---
+      if (Input.habilidade()) {
+        if (this.cdHabilidade <= 0 && !this.jaUsouHab) { this.usarHabilidade(); this.jaUsouHab = true; }
+      } else this.jaUsouHab = false;
 
       // --- Gravidade ---
       this.vy += GRAVIDADE;
@@ -129,6 +145,23 @@ class Jogador {
       }
     }
 
+    // --- Teto de roubo de vida (zera o acumulado a cada segundo) ---
+    this.curaRouboTempo += dt;
+    if (this.curaRouboTempo >= 1) { this.curaRouboTempo -= 1; this.curaRouboAcum = 0; }
+
+    // --- Buffs e Axé (ultimate) ---
+    if (this.buffT > 0) { this.buffT -= dt; if (this.buffT <= 0) { this.buffDano = 1; this.buffVel = 1; } }
+    if (this.invencivelT > 0) this.invencivelT -= dt;
+    if (this.cdHabilidade > 0) this.cdHabilidade -= dt;
+    if (this.axeAtivo > 0) {
+      this.axeAtivo -= dt;
+      this.axeTickCd -= dt;
+      if (this.axeTickCd <= 0) {
+        this.axeTickCd = 0.22;
+        this.jogo.explosao(this.centroX(), this.centroY(), 230 * this.stats.area, this.elemento, 1.6);
+      }
+    }
+
     // --- Ataque automático (continua mesmo preso no ar) ---
     if (this.cdAtaque <= 0) {
       const atacou = this.atacar();
@@ -143,6 +176,56 @@ class Jogador {
     this.y -= 42;            // "levanta" o jogador
     this.vx = 0; this.vy = 0;
     this.noChao = false;
+  }
+
+  // --- Habilidade ativa da classe ---
+  usarHabilidade() {
+    const h = this.classe.habilidade;
+    if (!h || this.cdHabilidade > 0) return false;
+    this.cdHabilidade = h.cd;
+    this.atacandoT = 0.3;
+    switch (h.tipo) {
+      case 'tremor': this.jogo.habTremor(this); break;
+      case 'bola':   this.jogo.habBolaDeFogo(this); break;
+      case 'mare':   this.jogo.habMare(this); break;
+      case 'piscar': this.habPiscar(); break;
+      case 'uivo':   this.habUivo(); break;
+    }
+    return true;
+  }
+
+  // Ninja: teleporta na direção do alvo, causando dano no caminho
+  habPiscar() {
+    const dist = 220;
+    let dx = this.olharDir, dy = 0;
+    const alvo = this.jogo.inimigoMaisProximo(this.centroX(), this.centroY());
+    if (alvo) {
+      const a = Math.atan2(alvo.centroY() - this.centroY(), alvo.centroX() - this.centroX());
+      dx = Math.cos(a); dy = Math.sin(a);
+      this.olharDir = dx < 0 ? -1 : 1;
+    }
+    const x0 = this.centroX(), y0 = this.centroY();
+    this.x = Utils.clamp(this.x + dx * dist, 0, this.jogo.mundoLargura - this.w);
+    this.y = Utils.clamp(this.y + dy * dist, 0, this.jogo.mundoAltura - this.h);
+    this.vy = 0;
+    this.invuln = Math.max(this.invuln, 0.35);
+    this.jogo.danoEmLinha(this, x0, y0, this.centroX(), this.centroY(), 42, 2.2);
+    for (let i = 0; i <= 6; i++) {
+      this.jogo.particulas.push(new Particula(
+        Utils.lerp(x0, this.centroX(), i / 6), Utils.lerp(y0, this.centroY(), i / 6),
+        0, 0, ELEMENTOS[this.elemento].cor, 4, 0.35));
+    }
+    this.jogo.tremer(3);
+  }
+
+  // Berserker: uivo que dá buff de dano/velocidade e amedronta os inimigos
+  habUivo() {
+    this.buffT = 5; this.buffDano = 1.6; this.buffVel = 1.35;
+    this.jogo.tremer(7);
+    this.jogo.aneis.push(new Anel(this.centroX(), this.centroY(), 120, ELEMENTOS[this.elemento].cor));
+    for (const e of this.jogo.inimigos) {
+      if (!e.morto && !e.morrendo) e.medoT = Math.max(e.medoT || 0, 1.6);
+    }
   }
 
   atacar() {
@@ -169,7 +252,7 @@ class Jogador {
   }
 
   receberDano(bruto, empurraoX) {
-    if (this.invuln > 0 || this.vida <= 0) return;
+    if (this.invuln > 0 || this.invencivelT > 0 || this.vida <= 0) return;
     const dano = danoAposArmadura(bruto, this.stats.armadura);
     this.vida -= dano;
     this.invuln = 0.6;
@@ -177,6 +260,18 @@ class Jogador {
     this.jogo.adicionarTextoDano(this.centroX(), this.y, dano, false, '#ff6b6b');
     this.jogo.tremer(6); // tremor ao levar dano
     if (this.vida <= 0) { this.vida = 0; this.jogo.gameOver(); }
+  }
+
+  // Roubo de vida com TETO por segundo — evita ficar imortal com muitas ondas de ataque
+  curarRoubo(danoAplicado) {
+    const rv = Math.min(0.45, this.stats.rouboVida); // % de roubo é limitado a 45%
+    if (rv <= 0 || this.vida <= 0) return;
+    const capSeg = this.stats.vidaMax * 0.12;        // no máximo 12% da vida máx. por segundo
+    let cura = danoAplicado * rv;
+    cura = Math.min(cura, Math.max(0, capSeg - this.curaRouboAcum));
+    if (cura <= 0) return;
+    this.curaRouboAcum += cura;
+    this.vida = Math.min(this.stats.vidaMax, this.vida + cura);
   }
 
   ganharXP(v) {
@@ -280,6 +375,9 @@ class Inimigo {
     this.alcanceIdeal = cfg.alcanceIdeal || 240; // distância que o atirador tenta manter
     this.intervaloTiro = cfg.intervaloTiro || 3;
     this.cdTiro = Utils.rand(0.8, this.intervaloTiro);
+    this.stunT = 0; // atordoado (Tremor do Guerreiro)
+    this.medoT = 0; // amedrontado (Uivo do Lobisomem)
+    this.lentoT = 0; // lentidão (água da Encantadeira)
   }
 
   update(dt) {
@@ -298,6 +396,32 @@ class Inimigo {
     const dx = jog.centroX() - this.centroX();
     const dy = jog.centroY() - this.centroY();
     this.dir = Math.sign(dx) || this.dir;
+
+    // Atordoado (Tremor): fica parado
+    if (this.stunT > 0) {
+      this.stunT -= dt;
+      this.vx = 0;
+      if (!this.voa) { this.vy += GRAVIDADE; if (this.vy > 18) this.vy = 18; this.noChao = resolverColisao(this, this.jogo.plataformas); }
+      return;
+    }
+    // Amedrontado (Uivo): foge do jogador
+    if (this.medoT > 0) {
+      this.medoT -= dt;
+      if (this.voa) {
+        const d = Math.hypot(dx, dy) || 1;
+        this.x -= (dx / d) * this.vel; this.y -= (dy / d) * this.vel;
+      } else {
+        this.vx = -Math.sign(dx) * this.vel;
+        this.vy += GRAVIDADE; if (this.vy > 18) this.vy = 18;
+        this.noChao = resolverColisao(this, this.jogo.plataformas);
+      }
+      return;
+    }
+
+    // Lentidão (água da Encantadeira): reduz a velocidade só neste frame
+    if (this.lentoT > 0) this.lentoT -= dt;
+    const _velBase = this.vel;
+    if (this.lentoT > 0) this.vel = _velBase * 0.5;
 
     if (this.voa) {
       if (this.cfg.sprite === 'urubu') {
@@ -349,6 +473,8 @@ class Inimigo {
       // Pose de ataque quando chega perto do jogador
       if (Math.abs(dx) < 55 && Math.abs(dy) < 46 && this.atacandoT <= 0) this.atacandoT = 0.35;
     }
+
+    this.vel = _velBase; // restaura a velocidade (após a lentidão do frame)
   }
 
   receberDano(res, elementoAtaque) {

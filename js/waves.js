@@ -5,35 +5,35 @@ const INIMIGOS = {
   // Inimigos comuns: gnomos verdes baixinhos de chapéu pontudo
   gnomo: {
     nome: 'Gnomo da Mata', sprite: 'gnomo', cor: '#4caf50', corChapeu: '#e53935', elemento: 'terra',
-    vidaBase: 18, danoContato: 8, vel: 2.4, tamanho: 26, xpValor: 1, voa: false
+    vidaBase: 30, danoContato: 11, vel: 2.4, tamanho: 26, xpValor: 2, voa: false
   },
   gnomoBravo: {
     nome: 'Gnomo Bravo', sprite: 'gnomo', cor: '#43a047', corChapeu: '#1e88e5', elemento: 'vento',
-    vidaBase: 30, danoContato: 12, vel: 1.7, tamanho: 34, xpValor: 2, voa: false
+    vidaBase: 50, danoContato: 15, vel: 1.7, tamanho: 34, xpValor: 3, voa: false
   },
   // Voador: urubu com camisa do Flamengo que bombardeia sacolas de dinheiro
   urubu: {
     nome: 'Urubu do Mengão', sprite: 'urubu', cor: '#22222a', elemento: 'vento',
-    vidaBase: 24, danoContato: 10, vel: 1.9, tamanho: 30, xpValor: 2, voa: true
+    vidaBase: 40, danoContato: 13, vel: 1.9, tamanho: 30, xpValor: 3, voa: true
   },
   gnomoAnciao: {
     nome: 'Gnomo Ancião', sprite: 'gnomo', cor: '#388e3c', corChapeu: '#8e24aa', barba: true, elemento: 'agua',
-    vidaBase: 45, danoContato: 14, vel: 1.3, tamanho: 38, xpValor: 3, voa: false
+    vidaBase: 75, danoContato: 17, vel: 1.3, tamanho: 38, xpValor: 4, voa: false
   },
   gnomoGigante: {
     nome: 'Gnomo Gigante', sprite: 'gnomo', cor: '#2e7d32', corChapeu: '#37474f', barba: true, elemento: 'trovao',
-    vidaBase: 60, danoContato: 18, vel: 1.5, tamanho: 44, xpValor: 4, voa: false
+    vidaBase: 100, danoContato: 22, vel: 1.5, tamanho: 44, xpValor: 6, voa: false
   },
   // Saci-Colorado: raro, lança redemoinho que suspende o jogador no ar (não dá dano direto)
   saci: {
     nome: 'Saci-Colorado', sprite: 'saci', comportamento: 'redemoinho', cor: '#e4002b', elemento: 'vento',
-    vidaBase: 22, danoContato: 6, vel: 2.7, tamanho: 26, xpValor: 2, voa: false,
+    vidaBase: 38, danoContato: 8, vel: 2.7, tamanho: 26, xpValor: 3, voa: false,
     alcanceIdeal: 210, intervaloTiro: 4.5
   },
   // Cangaceiro (Lampião): atira de longe com espingarda (dano à distância)
   cangaceiro: {
     nome: 'Cangaceiro', sprite: 'cangaceiro', comportamento: 'atirador', cor: '#b8925a', elemento: 'terra',
-    vidaBase: 34, danoContato: 12, vel: 1.6, tamanho: 34, xpValor: 3, voa: false,
+    vidaBase: 60, danoContato: 16, vel: 1.6, tamanho: 34, xpValor: 4, voa: false,
     alcanceIdeal: 320, intervaloTiro: 2.6, pelotas: 2
   },
   // --- Chefes ---
@@ -52,12 +52,13 @@ const INIMIGOS = {
 };
 
 // Progressão de "ondas comuns" por faixa de tempo (segundos)
+// Menos inimigos por vez (intervalos maiores), já que agora cada um é bem mais forte
 const PROGRESSAO = [
-  { ate: 60,  tipos: ['gnomo'],                                   intervalo: 1.3 },
-  { ate: 120, tipos: ['gnomo', 'urubu'],                          intervalo: 1.05 },
-  { ate: 180, tipos: ['gnomo', 'urubu', 'gnomoBravo'],            intervalo: 0.9 },
-  { ate: 300, tipos: ['urubu', 'gnomoBravo', 'gnomoAnciao'],      intervalo: 0.72 },
-  { ate: 999, tipos: ['gnomoBravo', 'gnomoAnciao', 'gnomoGigante'], intervalo: 0.58 }
+  { ate: 60,  tipos: ['gnomo'],                                   intervalo: 1.8 },
+  { ate: 120, tipos: ['gnomo', 'urubu'],                          intervalo: 1.5 },
+  { ate: 180, tipos: ['gnomo', 'urubu', 'gnomoBravo'],            intervalo: 1.3 },
+  { ate: 300, tipos: ['urubu', 'gnomoBravo', 'gnomoAnciao'],      intervalo: 1.05 },
+  { ate: 999, tipos: ['gnomoBravo', 'gnomoAnciao', 'gnomoGigante'], intervalo: 0.85 }
 ];
 
 // Chefes que entram em cena em momentos-chave
@@ -71,8 +72,8 @@ const CHEFES_AGENDA = [
 // Cada um tem ritmo próprio (intervalo), momento de estreia (desde), tamanho
 // do grupo (lote) e um LIMITE de quantos podem estar vivos ao mesmo tempo (cap).
 const ESPECIAIS = [
-  { tipo: 'saci',       desde: 40, intervalo: 13, cap: 4, lote: [1, 2], anuncio: '👣 Sacis colorados apareceram!' },
-  { tipo: 'cangaceiro', desde: 75, intervalo: 20, cap: 6, lote: [2, 3], anuncio: '🔫 Bando de cangaceiros no pedaço!' }
+  { tipo: 'saci',       desde: 45, intervalo: 17, cap: 3, lote: [1, 2], anuncio: '👣 Sacis colorados apareceram!' },
+  { tipo: 'cangaceiro', desde: 80, intervalo: 26, cap: 4, lote: [2, 2], anuncio: '🔫 Bando de cangaceiros no pedaço!' }
 ];
 
 class DiretorDeOndas {
@@ -86,7 +87,7 @@ class DiretorDeOndas {
   }
 
   // Escala de dificuldade cresce com o tempo (vida/dano dos inimigos)
-  escala() { return 1 + this.tempo / 75; }
+  escala() { return 1 + this.tempo / 95; }
 
   faseAtual() {
     return PROGRESSAO.find(f => this.tempo < f.ate) || PROGRESSAO[PROGRESSAO.length - 1];
@@ -109,7 +110,7 @@ class DiretorDeOndas {
     this.cdSpawn -= dt;
     if (this.cdSpawn <= 0) {
       this.cdSpawn = fase.intervalo;
-      const qtd = 1 + Math.floor(this.tempo / 62); // mais inimigos por vez ao longo do tempo
+      const qtd = 1 + Math.floor(this.tempo / 95); // cresce devagar (poucos e fortes)
       for (let i = 0; i < qtd; i++) {
         this.spawnInimigo(Utils.choice(fase.tipos));
       }

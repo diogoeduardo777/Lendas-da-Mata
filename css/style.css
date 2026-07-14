@@ -129,6 +129,7 @@ body {
 .alcunha { color: var(--sub); font-weight: 400; font-size: 12px; }
 .carta-elemento { font-size: 13px; font-weight: 600; }
 .carta-desc { color: var(--sub); font-size: 12px; line-height: 1.35; }
+.carta-hab { color: #c9a6ff; font-size: 11px; font-weight: 600; margin-top: 2px; }
 .carta-raridade { font-size: 11px; font-weight: 700; text-transform: uppercase; letter-spacing: 1px; }
 .carta-tecla {
   position: absolute; top: 8px; right: 10px;
@@ -249,6 +250,11 @@ body.toque .dica-toque { display: block; }
 .toque-dpad { position: absolute; bottom: 18px; left: 18px; display: flex; gap: 14px; }
 .toque-dpad .btn-toque { position: static; }
 .btn-toque-pular { right: 22px; width: 82px; height: 82px; font-size: 30px; }
+.btn-toque-hab {
+  right: 116px; bottom: 20px; width: 68px; height: 68px; font-size: 27px;
+  background: #3a2a5aaa; border-color: #b28bff66;
+}
+.btn-toque-hab.recarregando { opacity: 0.4; }
 
 /* ---------------- Aviso "gire o celular" (retrato) ---------------- */
 #girar-aviso {
@@ -297,5 +303,6 @@ body.toque .dica-toque { display: block; }
   /* Botões de toque um pouco menores em telas curtas */
   .btn-toque { width: 58px; height: 58px; font-size: 23px; bottom: 14px; }
   .btn-toque-pular { width: 72px; height: 72px; font-size: 27px; }
+  .btn-toque-hab { right: 96px; bottom: 14px; width: 58px; height: 58px; font-size: 23px; }
   .toque-dpad { left: 14px; bottom: 14px; gap: 12px; }
 }

@@ -92,7 +92,8 @@ class Game {
       rankingListaMenu: document.getElementById('ranking-lista-menu'),
       rankingFonte: document.getElementById('ranking-fonte'),
       goNome: document.getElementById('go-nome'),
-      btnSalvar: document.getElementById('btn-salvar-score')
+      btnSalvar: document.getElementById('btn-salvar-score'),
+      btnHab: document.getElementById('btn-habilidade')
     };
 
     document.getElementById('btn-jogar').onclick = () => this.abrirSelecao();
@@ -113,7 +114,8 @@ class Game {
         <div class="carta-icone" style="background:${c.cor}22;color:${c.cor}">${c.icone}</div>
         <div class="carta-nome">${c.nome} <span class="alcunha">(${c.alcunha})</span></div>
         <div class="carta-elemento" style="color:${el.cor}">${el.icone} ${el.nome}</div>
-        <div class="carta-desc">${c.descricao}</div>`;
+        <div class="carta-desc">${c.descricao}</div>
+        <div class="carta-hab">⚡ ${c.habilidade.nome}</div>`;
       card.onclick = () => this.iniciarPartida(id);
       this.el.cartasClasse.appendChild(card);
     }
@@ -134,6 +136,7 @@ class Game {
   iniciarPartida(classeId) {
     this.resetarPartida();
     this.jogador = new Jogador(this, classeId);
+    if (this.el.btnHab) this.el.btnHab.textContent = this.jogador.classe.habilidade.icone;
     this.diretor = new DiretorDeOndas(this);
     this.atualizarCamera();
     this.estado = 'jogando';
@@ -179,11 +182,18 @@ class Game {
     // Remove entidades mortas (e recolhe inimigos que ficaram longe demais)
     const jx = this.jogador.centroX(), jy = this.jogador.centroY();
     this.inimigos = this.inimigos.filter(e => {
-      if (e.morto) { this.abates++; this.combo++; this.comboTimer = 3; this.comboPulse = 1; return false; }
+      if (e.morto) {
+        this.abates++; this.combo++; this.comboTimer = 3; this.comboPulse = 1;
+        if (this.jogador.axeAtivo <= 0) this.jogador.axe = Math.min(1, this.jogador.axe + 0.02);
+        return false;
+      }
       if (!e.boss && !e.morrendo && Utils.dist(e.centroX(), e.centroY(), jx, jy) > 1900) return false;
       return true;
     });
-    this.projeteis = this.projeteis.filter(p => !p.morto);
+    this.projeteis = this.projeteis.filter(p => {
+      if (p.morto) { if (p.explode) this.explosao(p.x, p.y, p.explodeRaio, p.elemento, p.explodeMult); return false; }
+      return true;
+    });
     this.sacos = this.sacos.filter(s => !s.morto);
     this.projInimigos = this.projInimigos.filter(p => !p.morto);
     this.xpOrbes = this.xpOrbes.filter(o => !o.morto);
@@ -198,6 +208,9 @@ class Game {
     if (this.hitStopCd > 0) this.hitStopCd -= dt;
     if (this.comboPulse > 0) this.comboPulse = Math.max(0, this.comboPulse - dt * 3);
     if (this.comboTimer > 0) { this.comboTimer -= dt; if (this.comboTimer <= 0) this.combo = 0; }
+
+    // Dispara a ultimate (Axé) automaticamente quando a barra enche
+    if (this.jogador.axe >= 1 && this.jogador.axeAtivo <= 0) this.ativarAxe();
   }
 
   colisoes() {
@@ -211,6 +224,7 @@ class Game {
         if (Utils.dist(p.x, p.y, e.centroX(), e.centroY()) < p.raio + e.w / 2) {
           this.acertar(e, p.elemento);
           p.atingidos.add(e);
+          if (!p.explode) this.aplicarEfeitoAtaque(p.dono, e); // efeito da arma (splash/ricochete/lentidão)
           if (p.pierce-- <= 0) { p.morto = true; break; }
         }
       }
@@ -237,18 +251,17 @@ class Game {
   }
 
   // Aplica um acerto de ataque do jogador em um inimigo (com crítico, afinidade, roubo de vida)
-  acertar(inimigo, elemento) {
+  acertar(inimigo, elemento, mult = 1) {
     const jog = this.jogador;
-    const base = jog.stats.dano * jog.bonusFuria() * (1 + this.comboBonusDano());
+    const base = jog.stats.dano * jog.bonusFuria() * jog.buffDano * (1 + this.comboBonusDano()) * mult;
     const res = calcularDano(jog.stats, base, elemento, inimigo.elemento);
     const aplicado = inimigo.receberDano(res, elemento);
     if (res.critico) {
       this.tremer(3);
       if (this.hitStopCd <= 0) { this.hitStop = 0.03; this.hitStopCd = 0.16; } // punch no crítico (com throttle)
     }
-    if (jog.stats.rouboVida > 0) {
-      jog.vida = Math.min(jog.stats.vidaMax, jog.vida + aplicado * jog.stats.rouboVida);
-    }
+    jog.curarRoubo(aplicado);                                    // roubo de vida (com teto por segundo)
+    if (jog.axeAtivo <= 0) jog.axe = Math.min(1, jog.axe + aplicado * 0.0006); // enche o Axé
   }
 
   // Golpe em área ao redor do jogador (classes corpo a corpo)
@@ -258,6 +271,7 @@ class Game {
       if (e.morto || e.morrendo) continue;
       if (Utils.dist(x, y, e.centroX(), e.centroY()) < raio + e.w / 2) {
         this.acertar(e, dono.elemento);
+        this.aplicarEfeitoAtaque(dono, e); // efeito da arma (empurrão/corrente)
       }
     }
   }
@@ -277,6 +291,146 @@ class Game {
     for (let i = 0; i < n; i++) {
       const ang = ang0 + (i - (n - 1) / 2) * 0.13;
       this.projInimigos.push(new BalaCangaceiro(this, inimigo.centroX(), inimigo.centroY(), ang, inimigo.danoContato));
+    }
+  }
+
+  // =============== Habilidades ativas (Fase 2) ===============
+  // Guerreiro: onda de choque em volta que dá dano e atordoa
+  habTremor(dono) {
+    const raio = 150 * dono.stats.area;
+    this.aneis.push(new Anel(dono.centroX(), dono.centroY(), raio, ELEMENTOS[dono.elemento].cor));
+    this.tremer(9);
+    for (const e of this.inimigos) {
+      if (e.morto || e.morrendo) continue;
+      if (Utils.dist(dono.centroX(), dono.centroY(), e.centroX(), e.centroY()) < raio + e.w / 2) {
+        this.acertar(e, dono.elemento, 2.4);
+        e.stunT = Math.max(e.stunT, 1.3);
+      }
+    }
+  }
+
+  // Mago: bola de fogo grande que atravessa e explode em área
+  habBolaDeFogo(dono) {
+    const alvo = this.inimigoMaisProximo(dono.centroX(), dono.centroY());
+    const ang = alvo
+      ? Math.atan2(alvo.centroY() - dono.centroY(), alvo.centroX() - dono.centroX())
+      : (dono.olharDir > 0 ? 0 : Math.PI);
+    const p = new Projetil(this, dono, dono.centroX(), dono.centroY(), ang);
+    p.vx = Math.cos(ang) * 5; p.vy = Math.sin(ang) * 5;
+    p.raio = 15 * dono.stats.area; p.pierce = 99; p.vida = 1.6;
+    p.explode = true; p.explodeRaio = 95 * dono.stats.area; p.explodeMult = 2.2;
+    this.projeteis.push(p);
+  }
+
+  // Iara: maré que empurra os inimigos e cura o jogador
+  habMare(dono) {
+    const raio = 155 * dono.stats.area;
+    this.aneis.push(new Anel(dono.centroX(), dono.centroY(), raio, ELEMENTOS.agua.cor));
+    for (const e of this.inimigos) {
+      if (e.morto || e.morrendo) continue;
+      if (Utils.dist(dono.centroX(), dono.centroY(), e.centroX(), e.centroY()) < raio + e.w / 2) {
+        this.acertar(e, 'agua', 1.4);
+        const a = Math.atan2(e.centroY() - dono.centroY(), e.centroX() - dono.centroX());
+        e.x += Math.cos(a) * 70; e.y += Math.sin(a) * 35;
+      }
+    }
+    dono.vida = Math.min(dono.stats.vidaMax, dono.vida + dono.stats.vidaMax * 0.2);
+    this.tremer(4);
+  }
+
+  // Dano ao longo de um segmento (Piscar do Ninja)
+  danoEmLinha(dono, x1, y1, x2, y2, raio, mult) {
+    const passos = 8, atingidos = new Set();
+    for (let i = 0; i <= passos; i++) {
+      const px = Utils.lerp(x1, x2, i / passos), py = Utils.lerp(y1, y2, i / passos);
+      for (const e of this.inimigos) {
+        if (e.morto || e.morrendo || atingidos.has(e)) continue;
+        if (Utils.dist(px, py, e.centroX(), e.centroY()) < raio + e.w / 2) {
+          this.acertar(e, dono.elemento, mult); atingidos.add(e);
+        }
+      }
+    }
+  }
+
+  // Explosão em área (bola de fogo, Axé)
+  explosao(x, y, raio, elemento, mult, exceto) {
+    this.aneis.push(new Anel(x, y, raio, ELEMENTOS[elemento].cor));
+    for (const e of this.inimigos) {
+      if (e.morto || e.morrendo || e === exceto) continue;
+      if (Utils.dist(x, y, e.centroX(), e.centroY()) < raio + e.w / 2) this.acertar(e, elemento, mult);
+    }
+    for (let i = 0; i < 12; i++) {
+      this.particulas.push(new Particula(x, y, Utils.rand(-4, 4), Utils.rand(-4, 4),
+        ELEMENTOS[elemento].cor2 || ELEMENTOS[elemento].cor, Utils.rand(2, 5), Utils.rand(0.3, 0.7)));
+    }
+    this.tremer(6);
+  }
+
+  // Explosão leve (splash do Mago) — sem tremor, sem anel
+  explosaoPequena(x, y, raio, elemento, mult, exceto) {
+    for (const e of this.inimigos) {
+      if (e.morto || e.morrendo || e === exceto) continue;
+      if (Utils.dist(x, y, e.centroX(), e.centroY()) < raio + e.w / 2) this.acertar(e, elemento, mult);
+    }
+    for (let i = 0; i < 5; i++) {
+      this.particulas.push(new Particula(x, y, Utils.rand(-2, 2), Utils.rand(-2, 2),
+        ELEMENTOS[elemento].cor2 || ELEMENTOS[elemento].cor, Utils.rand(1.5, 3), Utils.rand(0.2, 0.4)));
+    }
+  }
+
+  // Ativa a ultimate: invoca o padroeiro do elemento
+  ativarAxe() {
+    const jog = this.jogador;
+    jog.axe = 0; jog.axeAtivo = 4; jog.axeTickCd = 0; jog.invencivelT = 4;
+    this.tremer(14);
+    this.anunciar(`✨ ${ELEMENTOS[jog.elemento].padroeiro} foi invocado!`);
+  }
+
+  // Inimigo mais próximo de (x,y), excluindo um alvo ou um conjunto
+  inimigoProximoExceto(x, y, excluir, maxDist) {
+    const ehSet = excluir instanceof Set;
+    let melhor = null, menor = maxDist;
+    for (const e of this.inimigos) {
+      if (e.morto || e.morrendo) continue;
+      if (ehSet ? excluir.has(e) : e === excluir) continue;
+      const d = Utils.dist(x, y, e.centroX(), e.centroY());
+      if (d < menor) { menor = d; melhor = e; }
+    }
+    return melhor;
+  }
+
+  // Faísca visual entre dois inimigos (corrente/ricochete)
+  faisca(a, b, elemento) {
+    const cor = ELEMENTOS[elemento].cor2 || ELEMENTOS[elemento].cor;
+    for (let i = 0; i <= 4; i++) {
+      this.particulas.push(new Particula(
+        Utils.lerp(a.centroX(), b.centroX(), i / 4), Utils.lerp(a.centroY(), b.centroY(), i / 4),
+        Utils.rand(-1, 1), Utils.rand(-1, 1), cor, 2.5, 0.25));
+    }
+  }
+
+  // Efeito extra do ataque básico, por classe (empurrão, splash, ricochete, lentidão, corrente)
+  aplicarEfeitoAtaque(dono, alvo) {
+    const ef = dono.arma.efeito;
+    if (!ef) return;
+    if (ef === 'empurrao') {
+      const a = Math.atan2(alvo.centroY() - dono.centroY(), alvo.centroX() - dono.centroX());
+      alvo.x += Math.cos(a) * 26; alvo.y += Math.sin(a) * 12;
+    } else if (ef === 'lentidao') {
+      alvo.lentoT = Math.max(alvo.lentoT, 1.6);
+    } else if (ef === 'splash') {
+      this.explosaoPequena(alvo.centroX(), alvo.centroY(), 48 * dono.stats.area, dono.elemento, 0.5, alvo);
+    } else if (ef === 'ricochete') {
+      const prox = this.inimigoProximoExceto(alvo.centroX(), alvo.centroY(), alvo, 220);
+      if (prox) { this.acertar(prox, dono.elemento, 0.6); this.faisca(alvo, prox, dono.elemento); }
+    } else if (ef === 'corrente') {
+      let origem = alvo; const ja = new Set([alvo]);
+      for (let k = 0; k < 3; k++) {
+        const prox = this.inimigoProximoExceto(origem.centroX(), origem.centroY(), ja, 180);
+        if (!prox) break;
+        this.acertar(prox, dono.elemento, 0.5); this.faisca(origem, prox, dono.elemento);
+        ja.add(prox); origem = prox;
+      }
     }
   }
 
@@ -529,6 +683,29 @@ class Game {
       ctx.restore();
     }
 
+    // Barra de Axé (ultimate) + ícone da habilidade — rodapé
+    if (this.jogador) {
+      const j = this.jogador;
+      const bw = 190, bx = this.largura / 2 - bw / 2, by = this.altura - 24;
+      ctx.fillStyle = '#00000066'; ctx.fillRect(bx, by, bw, 9);
+      ctx.fillStyle = j.axeAtivo > 0 ? '#fff2a0' : '#ffd93c';
+      ctx.fillRect(bx, by, bw * Utils.clamp(j.axe, 0, 1), 9);
+      ctx.strokeStyle = '#ffffff44'; ctx.lineWidth = 1; ctx.strokeRect(bx, by, bw, 9);
+      ctx.fillStyle = j.axe >= 1 || j.axeAtivo > 0 ? '#fff2a0' : '#cde8cf';
+      ctx.font = 'bold 9px system-ui'; ctx.textAlign = 'center'; ctx.textBaseline = 'alphabetic';
+      ctx.fillText(j.axeAtivo > 0 ? 'AXÉ — INVOCADO!' : 'AXÉ', this.largura / 2, by - 3);
+      // Ícone da habilidade + recarga
+      const hx = bx - 26, hy = by + 4;
+      ctx.textAlign = 'center'; ctx.textBaseline = 'middle';
+      ctx.globalAlpha = j.cdHabilidade > 0 ? 0.4 : 1;
+      ctx.font = '18px system-ui'; ctx.fillText(j.classe.habilidade.icone, hx, hy);
+      ctx.globalAlpha = 1;
+      if (j.cdHabilidade > 0) {
+        ctx.fillStyle = '#fff'; ctx.font = 'bold 11px system-ui';
+        ctx.fillText(Math.ceil(j.cdHabilidade), hx, hy);
+      }
+    }
+
     if (this.jogador) this.atualizarHUD();
   }
 
@@ -540,6 +717,7 @@ class Game {
     this.el.nivel.textContent = 'Nv ' + j.nivel;
     this.el.tempo.textContent = Utils.formatTempo(this.diretor.tempo);
     this.el.abates.textContent = '☠ ' + this.abates;
+    if (this.el.btnHab) this.el.btnHab.classList.toggle('recarregando', j.cdHabilidade > 0);
 
     const af = Object.entries(s.afinidade)
       .filter(([, v]) => v > 1)
